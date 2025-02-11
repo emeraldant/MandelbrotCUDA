@@ -27,6 +27,9 @@ Mandelbrot::Mandelbrot(int width, int height, float centerX, float centerY, floa
     , dragStartCenterY(0.0f)
     , dragStartFractalX(0.0f)
     , dragStartFractalY(0.0f)
+    , initialCenterX(centerX)
+    , initialCenterY(centerY)
+    , initialZoom(zoom)
 {
     // Initialize CUDA here if needed
 }
@@ -40,31 +43,20 @@ void Mandelbrot::screenToFractalCoords(float screenX, float screenY, float& frac
     float fractalWidth = 4.0f / zoom;
     float fractalHeight = fractalWidth / aspectRatio;
     
-    // Convert screen coordinates to [-2, 2] range, accounting for aspect ratio
-    fractalX = ((screenX / width) - 0.5f) * fractalWidth;
-    fractalY = ((screenY / height) - 0.5f) * fractalHeight;
-    
-    // Offset by current center
-    fractalX += centerX;
-    fractalY += centerY;
+    // Convert screen coordinates to fractal space directly
+    fractalX = centerX + (screenX / width - 0.5f) * fractalWidth;
+    fractalY = centerY + (screenY / height - 0.5f) * fractalHeight;
 }
 
 void Mandelbrot::setZoomTarget(float x, float y, float zoomFactor) {
     if (isDragging) return; // Don't zoom while dragging
     
-    // Calculate the point we want to zoom into in fractal coordinates
-    float mouseX, mouseY;
-    screenToFractalCoords(x, y, mouseX, mouseY);
-    
     // Calculate new zoom level
     targetZoom = zoom * zoomFactor;
     
-    // Calculate new center position to keep mouse point fixed
-    float newFractalWidth = 4.0f / targetZoom;
-    float newFractalHeight = newFractalWidth / (static_cast<float>(width) / height);
-    
-    targetCenterX = mouseX - (x - width / 2) * (newFractalWidth / width);
-    targetCenterY = mouseY - (y - height / 2) * (newFractalHeight / height);
+    // Keep the current center - no need to change it since we're zooming into screen center
+    targetCenterX = centerX;
+    targetCenterY = centerY;
     
     animating = true;
 }
@@ -113,6 +105,22 @@ void Mandelbrot::updateDrag(float x, float y) {
 
 void Mandelbrot::endDrag() {
     isDragging = false;
+}
+
+void Mandelbrot::reset() {
+    // Stop any ongoing animation or drag
+    animating = false;
+    isDragging = false;
+    
+    // Reset to initial values
+    centerX = initialCenterX;
+    centerY = initialCenterY;
+    zoom = initialZoom;
+    
+    // Update targets
+    targetCenterX = centerX;
+    targetCenterY = centerY;
+    targetZoom = zoom;
 }
 
 void Mandelbrot::update(float deltaTime) {

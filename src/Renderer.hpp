@@ -17,6 +17,7 @@ public:
     void draw();
     void updateFPSCounter(float fps);
     void updateTexture(const void* pixels);
+    void updateCoordinates(float x, float y, float zoom);
 
     // Methods for mouse interaction
     void setZoomCallback(std::function<void(float, float, float)> callback);
@@ -25,20 +26,30 @@ public:
         std::function<void(float, float)> updateCallback,
         std::function<void()> endCallback
     );
+    void setResetCallback(std::function<void()> callback);
     sf::Vector2i getMousePosition() const;
 
 private:
+    void loadFont();
+    
     sf::RenderWindow window;
     sf::Texture texture;
     sf::Sprite sprite;
     sf::Font font;
     std::unique_ptr<sf::Text> fpsText;
+    std::unique_ptr<sf::Text> coordsText;
+    
+    // Reset button
+    sf::RectangleShape resetButton;
+    std::unique_ptr<sf::Text> resetButtonText;
+    bool isMouseOverButton(float x, float y) const;
     
     // Callbacks for mouse events
     std::function<void(float, float, float)> zoomCallback;
     std::function<void(float, float)> dragStartCallback;
     std::function<void(float, float)> dragUpdateCallback;
     std::function<void()> dragEndCallback;
+    std::function<void()> resetCallback;
     
     static constexpr float ZOOM_IN_FACTOR = 1.5f;   // More gradual zoom in
     static constexpr float ZOOM_OUT_FACTOR = 0.75f; // More gradual zoom out

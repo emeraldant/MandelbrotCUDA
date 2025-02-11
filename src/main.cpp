@@ -12,48 +12,42 @@ int main() {
     // Start at an interesting location with good detail potential
     Mandelbrot fractal(windowWidth, windowHeight, -0.75f, 0.1f, 1.5f, 1000);
 
-    // Set up zoom callback
-    renderer.setZoomCallback([&fractal](float x, float y, float zoomFactor) {
-        fractal.setZoomTarget(x, y, zoomFactor);
+    // Set up callbacks for mouse interaction
+    renderer.setZoomCallback([&fractal](float x, float y, float factor) {
+        fractal.setZoomTarget(x, y, factor);
     });
-
-    // Set up drag callbacks
+    
     renderer.setDragCallbacks(
         [&fractal](float x, float y) { fractal.startDrag(x, y); },
         [&fractal](float x, float y) { fractal.updateDrag(x, y); },
         [&fractal]() { fractal.endDrag(); }
     );
+    
+    renderer.setResetCallback([&fractal]() {
+        fractal.reset();
+    });
 
     sf::Clock clock;
-    sf::Clock fpsClock;
-    int frameCount = 0;
+    float lastTime = 0.0f;
     
     while (renderer.isOpen()) {
-        float deltaTime = clock.restart().asSeconds();
+        float currentTime = clock.getElapsedTime().asSeconds();
+        float deltaTime = currentTime - lastTime;
+        lastTime = currentTime;
         
-        // Handle events, quit if needed
         if (!renderer.handleEvents()) {
             break;
         }
-
-        // Update fractal parameters
-        fractal.update(deltaTime);
         
-        // Compute new frame
+        fractal.update(deltaTime);
         fractal.compute();
         
-        // Update display
-        renderer.updateTexture(fractal.getPixels());
+        // Update coordinate display
+        auto [centerX, centerY] = fractal.getCurrentCenter();
+        renderer.updateCoordinates(centerX, centerY, fractal.getCurrentZoom());
         
-        // FPS calculation
-        frameCount++;
-        if (fpsClock.getElapsedTime().asSeconds() >= 1.0f) {
-            float fps = static_cast<float>(frameCount) / fpsClock.getElapsedTime().asSeconds();
-            renderer.updateFPSCounter(fps);
-            frameCount = 0;
-            fpsClock.restart();
-        }
-
+        renderer.updateTexture(fractal.getPixels());
+        renderer.updateFPSCounter(1.0f / deltaTime);
         renderer.clear();
         renderer.draw();
     }

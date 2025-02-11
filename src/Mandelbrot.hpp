@@ -21,6 +21,12 @@ public:
     bool isAnimating() const { return animating; }
     float getCurrentZoom() const { return zoom; }
     std::pair<float, float> getCurrentCenter() const { return {centerX, centerY}; }
+    
+    // Reset to initial state
+    void reset();
+    
+    // Helper method to convert screen to fractal coordinates
+    void screenToFractalCoords(float screenX, float screenY, float& fractalX, float& fractalY) const;
 
 private:
     int width;
@@ -44,12 +50,14 @@ private:
     float dragStartFractalX;
     float dragStartFractalY;
     
+    // Initial state values for reset
+    const float initialCenterX;
+    const float initialCenterY;
+    const float initialZoom;
+    
     static constexpr float ZOOM_SPEED = 6.0f;  // Increased for smoother zoom
     static constexpr float POSITION_SPEED = 6.0f;  // Matched with zoom speed
     static constexpr float DRAG_SENSITIVITY = 0.25f; // Reduce overall drag movement
-    
-    // Helper method to convert screen to fractal coordinates
-    void screenToFractalCoords(float screenX, float screenY, float& fractalX, float& fractalY) const;
 };
 
 #endif // MANDELBROT_HPP

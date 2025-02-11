@@ -34,9 +34,12 @@ target_link_directories(CudaMandelbrot PRIVATE
 
 # Link libraries
 target_link_libraries(CudaMandelbrot PRIVATE 
-    "sfml-system"
-    "sfml-window"
-    "sfml-graphics"
+    debug "sfml-system-d"
+    debug "sfml-window-d"
+    debug "sfml-graphics-d"
+    optimized "sfml-system"
+    optimized "sfml-window"
+    optimized "sfml-graphics"
 )
 
 # Set output directories
@@ -51,4 +54,10 @@ add_custom_command(TARGET CudaMandelbrot POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     "${SFML_ROOT}/bin"
     $<TARGET_FILE_DIR:CudaMandelbrot>
+)
+
+# Copy resources to build directory
+add_custom_command(TARGET CudaMandelbrot POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/resources $<TARGET_FILE_DIR:CudaMandelbrot>/resources
 )
