@@ -85,18 +85,22 @@ void Mandelbrot::startDrag(float x, float y) {
 void Mandelbrot::updateDrag(float x, float y) {
     if (!isDragging) return;
 
-    // Compute current fractal coordinates using dragStartCenter values
-    float aspectRatio = static_cast<float>(width) / height;
-    float fractalWidth = 4.0f / zoom;
-    float fractalHeight = fractalWidth / aspectRatio;
-    
-    // Convert current screen position to fractal coordinates using dragStartCenter
-    float currentFractalX = ((x / width) - 0.5f) * fractalWidth + dragStartCenterX;
-    float currentFractalY = ((y / height) - 0.5f) * fractalHeight + dragStartCenterY;
+    // Calculate movement as a percentage of screen dimensions
+    float deltaXPercent = (x - dragStartX) / width;
+    float deltaYPercent = (y - dragStartY) / height;
 
-    // Update center position based on the difference between start and current fractal coordinates
-    centerX = dragStartCenterX + (dragStartFractalX - currentFractalX);
-    centerY = dragStartCenterY + (dragStartFractalY - currentFractalY);
+    const float BASE_MOVEMENT_SCALE = 4.0f;
+    float zoomFactor = std::log2f(zoom + 1.0f) * 0.3f;  // Logarithmic scaling to prevent extreme speeds
+    float adjustedScale = BASE_MOVEMENT_SCALE * zoomFactor;
+    
+    // Calculate movement in fractal coordinates with zoom-aware scale
+    float aspectRatio = static_cast<float>(width) / height;
+    float moveX = deltaXPercent * adjustedScale / aspectRatio;
+    float moveY = deltaYPercent * adjustedScale;
+    
+    // Apply the scaled movement to the starting position
+    centerX = dragStartCenterX - moveX;
+    centerY = dragStartCenterY - moveY;
 
     // Update target position to match current position
     targetCenterX = centerX;
@@ -112,7 +116,7 @@ void Mandelbrot::reset() {
     animating = false;
     isDragging = false;
     
-    // Reset to initial values
+    // Reset to stored initial values
     centerX = initialCenterX;
     centerY = initialCenterY;
     zoom = initialZoom;
