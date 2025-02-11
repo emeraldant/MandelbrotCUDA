@@ -4,15 +4,13 @@
 #include <iostream>
 
 int main() {
-    const int windowWidth = 1280;   // Increased resolution
-    const int windowHeight = 720;   // 16:9 aspect ratio
+    const int windowWidth = 2560;   
+    const int windowHeight = 1440;  
 
     Renderer renderer(windowWidth, windowHeight);
     
-    // Start at an interesting location with good detail potential
-    Mandelbrot fractal(windowWidth, windowHeight, -0.75f, 0.1f, 1.5f, 1000);
+    Mandelbrot fractal(windowWidth, windowHeight, -0.75f, 0.1f, 1.5f, 25000);
 
-    // Set up callbacks for mouse interaction
     renderer.setZoomCallback([&fractal](float x, float y, float factor) {
         fractal.setZoomTarget(x, y, factor);
     });

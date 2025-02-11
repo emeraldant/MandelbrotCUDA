@@ -93,30 +93,30 @@ extern "C" void computeMandelbrotCUDA(uint8_t* pixels,
                                    float centerX, float centerY,
                                    float scale, int maxIterations)
 {
-    // Default thread block size
     const int threadsPerBlockX = 16;
     const int threadsPerBlockY = 16;
     
     dim3 threadsPerBlock(threadsPerBlockX, threadsPerBlockY);
     dim3 numBlocks((width + threadsPerBlock.x - 1) / threadsPerBlock.x,
                    (height + threadsPerBlock.y - 1) / threadsPerBlock.y);
-    
-    // Allocate device memory
+
     uint8_t* d_pixels;
-    cudaMalloc(&d_pixels, width * height * 4);
+    size_t pitch;
+    cudaMallocPitch(&d_pixels, &pitch, width * 4, height);
     
-    // Launch kernel
+    // Launch kernel with L1 cache preference for better performance
+    cudaFuncSetCacheConfig(mandelbrotKernel, cudaFuncCachePreferL1);
+    
     mandelbrotKernel<<<numBlocks, threadsPerBlock>>>(d_pixels, width, height,
                                                     centerX, centerY,
                                                     scale, maxIterations);
     
-    // Copy result back to host
-    cudaMemcpy(pixels, d_pixels, width * height * 4, cudaMemcpyDeviceToHost);
+    // Copy result back to host using pitched memory
+    cudaMemcpy2D(pixels, width * 4, d_pixels, pitch,
+                 width * 4, height, cudaMemcpyDeviceToHost);
     
-    // Free device memory
     cudaFree(d_pixels);
     
-    // Check for errors
     cudaError_t err = cudaDeviceSynchronize();
     if (err != cudaSuccess) {
         printf("CUDA kernel error: %s\n", cudaGetErrorString(err));

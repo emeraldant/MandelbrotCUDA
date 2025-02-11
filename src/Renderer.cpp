@@ -5,7 +5,7 @@
 #include <sstream>
 
 Renderer::Renderer(int width, int height)
-    : window(sf::VideoMode({static_cast<unsigned int>(width), static_cast<unsigned int>(height)}), "Mandelbrot Set")
+    : window(sf::VideoMode({static_cast<unsigned int>(width), static_cast<unsigned int>(height)}), "Mandelbrot Set", sf::Style::Default)
     , texture(sf::Vector2u(width, height))  // Create texture with size in constructor
     , sprite(texture)  // Initialize sprite with texture
     , font()
@@ -60,6 +60,13 @@ Renderer::Renderer(int width, int height)
         static_cast<float>(width - 90 + (80 - textBounds.size.x) / 2),
         10.f + (30.f - textBounds.size.y) / 2
     });
+    
+    // Center the window on the screen
+    sf::VideoMode desktop = sf::VideoMode::getDesktopMode();
+    window.setPosition(sf::Vector2i(
+        (desktop.size.x  - width) / 2,
+        (desktop.size.y - height) / 2
+    ));
 }
 
 void Renderer::loadFont() {
