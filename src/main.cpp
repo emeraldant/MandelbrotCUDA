@@ -42,10 +42,19 @@ int main() {
         
         // Update coordinate display
         auto [centerX, centerY] = fractal.getCurrentCenter();
-        renderer.updateCoordinates(centerX, centerY, fractal.getCurrentZoom());
-        
+        float currentZoom = fractal.getCurrentZoom();
+        renderer.updateCoordinates(centerX, centerY, currentZoom);
+
+        // Update the main fractal texture
         renderer.updateTexture(fractal.getPixels());
+        
+        // Update minimap viewport based on current center and zoom
+        renderer.updateMinimapViewport(centerX, centerY, currentZoom);
+        
+        // Update FPS display
         renderer.updateFPSCounter(1.0f / deltaTime);
+        
+        // Render everything
         renderer.clear();
         renderer.draw();
     }
