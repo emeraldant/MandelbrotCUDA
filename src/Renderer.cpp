@@ -1,4 +1,5 @@
 #include "Renderer.hpp"
+#include "CudaKernels.cuh"
 #include <iostream>
 #include <filesystem>
 #include <optional>
@@ -6,8 +7,6 @@
 
 Renderer::Renderer(int width, int height)
     : window(sf::VideoMode({static_cast<unsigned int>(width), static_cast<unsigned int>(height)}), "Mandelbrot Set", sf::Style::Default)
-    , texture(sf::Vector2u(width, height))  // Create texture with size in constructor
-    , sprite(texture)  // Initialize sprite with texture
     , font()
     , fpsText(nullptr)
     , coordsText(nullptr)
@@ -18,6 +17,14 @@ Renderer::Renderer(int width, int height)
     , dragUpdateCallback(nullptr)
     , dragEndCallback(nullptr)
     , resetCallback(nullptr)
+    , minimapPixels(MINIMAP_SIZE * MINIMAP_SIZE * 4)
+    , texture(sf::Vector2u(width, height))
+    , sprite(texture)
+    , minimapTexture(sf::Vector2u(MINIMAP_SIZE, MINIMAP_SIZE))
+    , minimapSprite(minimapTexture)
+    , minimapBackground()
+    , minimapBorder()
+    , minimapViewport()
 {
     // Load font first
     if (!font.openFromFile("./resources/arial.ttf")) {
@@ -64,9 +71,15 @@ Renderer::Renderer(int width, int height)
     // Center the window on the screen
     sf::VideoMode desktop = sf::VideoMode::getDesktopMode();
     window.setPosition(sf::Vector2i(
-        (desktop.size.x  - width) / 2,
-        (desktop.size.y - height) / 2
+        (desktop.size.x - static_cast<unsigned int>(width)) / 2,
+        (desktop.size.y - static_cast<unsigned int>(height)) / 2
     ));
+    
+    // Setup minimap
+    setupMinimap();
+    
+    // Update minimap texture with initial data
+    updateMinimapTexture();
 }
 
 void Renderer::loadFont() {
@@ -175,10 +188,19 @@ void Renderer::clear() {
 void Renderer::draw() {
     window.clear();
     window.draw(sprite);
+    
+    // Draw minimap components
+    window.draw(minimapBackground);
+    window.draw(minimapSprite);
+    window.draw(minimapBorder);
+    window.draw(minimapViewport);
+    
+    // Draw UI elements
     window.draw(resetButton);
     window.draw(*resetButtonText);
     window.draw(*fpsText);
     window.draw(*coordsText);
+    
     window.display();
 }
 
@@ -203,4 +225,73 @@ void Renderer::setResetCallback(std::function<void()> callback) {
 
 void Renderer::updateTexture(const void* pixels) {
     texture.update(static_cast<const std::uint8_t*>(pixels));
+}
+
+void Renderer::setupMinimap() {
+    std::cout << "Setting up minimap..." << std::endl;
+    
+    // Calculate minimap position in top-left corner with padding
+    float minimapX = 10;
+    float minimapY = 10;
+    
+    // Position the sprite
+    minimapSprite.setPosition(sf::Vector2f(minimapX, minimapY));
+    
+    // Setup background (slightly larger than the minimap for border effect)
+    minimapBackground.setSize(sf::Vector2f(MINIMAP_SIZE + 10, MINIMAP_SIZE + 10));
+    minimapBackground.setPosition(sf::Vector2f(minimapX - 5, minimapY - 5));
+    minimapBackground.setFillColor(sf::Color(32, 32, 32, 200)); // Semi-transparent dark gray
+    
+    // Setup border
+    minimapBorder.setSize(sf::Vector2f(MINIMAP_SIZE + 10, MINIMAP_SIZE + 10));
+    minimapBorder.setPosition(sf::Vector2f(minimapX - 5, minimapY - 5));
+    minimapBorder.setFillColor(sf::Color::Transparent);
+    minimapBorder.setOutlineColor(sf::Color(180, 180, 180)); // Light gray
+    minimapBorder.setOutlineThickness(1.0f);
+    
+    // Setup viewport rectangle (initially full size)
+    minimapViewport.setSize(sf::Vector2f(80.0f, 80.0f));
+    minimapViewport.setPosition(sf::Vector2f(minimapX + 60, minimapY + 60));
+    minimapViewport.setFillColor(sf::Color::Transparent);
+    minimapViewport.setOutlineColor(sf::Color(255, 255, 255, 128)); // Semi-transparent white
+    minimapViewport.setOutlineThickness(1.0f);
+    
+    std::cout << "Minimap setup complete" << std::endl;
+}
+
+void Renderer::updateMinimapViewport(float centerX, float centerY, float scale) {
+    // Scale the size of the viewport rectangle based on zoom level
+    // Higher scale means more zoomed in, so viewport should be smaller
+    float viewportSize = 80.0f * scale;
+    
+    // Make sure it's not too small or too large
+    viewportSize = std::max(10.0f, std::min(viewportSize, 190.0f));
+    
+    // Position the viewport based on the center coordinates
+    // Map centerX, centerY from [-2.0, 2.0] to [0, 200]
+    float viewportX = (centerX + 2.0f) * 50.0f + minimapSprite.getPosition().x - viewportSize / 2.0f;
+    float viewportY = (centerY + 2.0f) * 50.0f + minimapSprite.getPosition().y - viewportSize / 2.0f;
+    
+    minimapViewport.setSize(sf::Vector2f(viewportSize, viewportSize));
+    minimapViewport.setPosition(sf::Vector2f(viewportX, viewportY));
+}
+
+void Renderer::updateMinimapTexture() {
+    // Check if the minimap is properly initialized
+    if (minimapPixels.empty()) {
+        std::cerr << "Minimap pixels not initialized" << std::endl;
+        return;
+    }
+
+    std::cout << "Updating minimap texture with " << minimapPixels.size() << " bytes..." << std::endl;
+    
+    // Compute the Mandelbrot set for the minimap (fixed view of entire set)
+    computeMandelbrotMinimapCUDA(minimapPixels.data(), MINIMAP_SIZE, MINIMAP_SIZE, 100);
+    
+    // Update the texture
+    minimapTexture.update(minimapPixels.data());
+    
+    // Check if the texture was updated correctly
+    sf::Vector2u textureSize = minimapTexture.getSize();
+    std::cout << "Minimap texture updated with size: " << textureSize.x << "x" << textureSize.y << std::endl;
 }

@@ -88,6 +88,48 @@ __global__ void mandelbrotKernel(uint8_t* pixels, int width, int height,
     }
 }
 
+__global__ void minimapKernel(uint8_t* pixels, int width, int height, int maxIterations)
+{
+    int px = blockIdx.x * blockDim.x + threadIdx.x;
+    int py = blockIdx.y * blockDim.y + threadIdx.y;
+    if (px >= width || py >= height) return;
+
+    int idx = (py * width + px) * 4;
+
+    // Map pixel to complex plane, minimap shows fixed [-2,2] range
+    float x0 = -2.0f + (px / (float)width) * 4.0f;
+    float y0 = -2.0f + (py / (float)height) * 4.0f;
+
+    float x = 0.0f, y = 0.0f;
+    int iteration = 0;
+    const float bailout = 4.0f;
+
+    // Main iteration
+    while (x * x + y * y < bailout && iteration < maxIterations) {
+        float x_temp = x * x - y * y + x0;
+        y = 2.0f * x * y + y0;
+        x = x_temp;
+        iteration++;
+    }
+
+    if (iteration == maxIterations) {
+        // Inside set - black
+        pixels[idx + 0] = 0;
+        pixels[idx + 1] = 0;
+        pixels[idx + 2] = 0;
+        pixels[idx + 3] = 255;
+    } else {
+        // Blue-white gradient for minimap
+        float t = (float)iteration / maxIterations;
+        
+        // Transition from blue to white
+        pixels[idx + 0] = static_cast<uint8_t>(255 * t);         // R
+        pixels[idx + 1] = static_cast<uint8_t>(255 * t);         // G
+        pixels[idx + 2] = static_cast<uint8_t>(150 + 105 * t);   // B
+        pixels[idx + 3] = 255;                                   // A
+    }
+}
+
 extern "C" void computeMandelbrotCUDA(uint8_t* pixels,
                                    int width, int height,
                                    float centerX, float centerY,
@@ -121,4 +163,44 @@ extern "C" void computeMandelbrotCUDA(uint8_t* pixels,
     if (err != cudaSuccess) {
         printf("CUDA kernel error: %s\n", cudaGetErrorString(err));
     }
+}
+
+extern "C" void computeMandelbrotMinimapCUDA(uint8_t* pixels, int width, int height, int maxIterations)
+{
+    uint8_t* d_pixels;
+    
+    // Allocate memory on the device
+    cudaError_t err = cudaMalloc(&d_pixels, width * height * 4);
+    if (err != cudaSuccess) {
+        printf("CUDA malloc error: %s\n", cudaGetErrorString(err));
+        return;
+    }
+    
+    // Setup kernel launch parameters
+    const int threadsPerBlockX = 16;
+    const int threadsPerBlockY = 16;
+    
+    dim3 threadsPerBlock(threadsPerBlockX, threadsPerBlockY);
+    dim3 numBlocks((width + threadsPerBlock.x - 1) / threadsPerBlock.x,
+                  (height + threadsPerBlock.y - 1) / threadsPerBlock.y);
+    
+    // Launch the kernel
+    minimapKernel<<<numBlocks, threadsPerBlock>>>(d_pixels, width, height, maxIterations);
+    
+    // Check for errors
+    err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        printf("CUDA kernel error: %s\n", cudaGetErrorString(err));
+        cudaFree(d_pixels);
+        return;
+    }
+    
+    // Copy the result back to host memory
+    err = cudaMemcpy(pixels, d_pixels, width * height * 4, cudaMemcpyDeviceToHost);
+    if (err != cudaSuccess) {
+        printf("CUDA memcpy error: %s\n", cudaGetErrorString(err));
+    }
+    
+    // Free device memory
+    cudaFree(d_pixels);
 }

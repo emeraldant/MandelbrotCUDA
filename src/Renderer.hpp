@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 class Renderer {
 public:
@@ -28,6 +29,9 @@ public:
     );
     void setResetCallback(std::function<void()> callback);
     sf::Vector2i getMousePosition() const;
+
+    // Minimap update methods
+    void updateMinimapViewport(float centerX, float centerY, float scale);
 
 private:
     void loadFont();
@@ -53,6 +57,19 @@ private:
     
     static constexpr float ZOOM_IN_FACTOR = 1.5f;   // More gradual zoom in
     static constexpr float ZOOM_OUT_FACTOR = 0.75f; // More gradual zoom out
+
+    // Minimap members
+    static constexpr int MINIMAP_SIZE = 200;
+    sf::Texture minimapTexture;
+    sf::Sprite minimapSprite;
+    sf::RectangleShape minimapBackground;
+    sf::RectangleShape minimapBorder;
+    sf::RectangleShape minimapViewport;
+    std::vector<std::uint8_t> minimapPixels;
+    
+    // Minimap methods
+    void setupMinimap();
+    void updateMinimapTexture();
 };
 
 #endif // RENDERER_HPP
