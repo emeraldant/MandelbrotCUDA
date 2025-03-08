@@ -142,26 +142,46 @@ extern "C" void computeMandelbrotCUDA(uint8_t* pixels,
     dim3 numBlocks((width + threadsPerBlock.x - 1) / threadsPerBlock.x,
                    (height + threadsPerBlock.y - 1) / threadsPerBlock.y);
 
-    uint8_t* d_pixels;
-    size_t pitch;
-    cudaMallocPitch(&d_pixels, &pitch, width * 4, height);
+    uint8_t* d_pixels = nullptr;
+    size_t pitch = 0;
+    cudaError_t err;
+    
+    // Allocate device memory with error checking
+    err = cudaMallocPitch(&d_pixels, &pitch, width * 4, height);
+    if (err != cudaSuccess) {
+        printf("CUDA memory allocation error: %s\n", cudaGetErrorString(err));
+        return; // Early return on allocation failure
+    }
     
     // Launch kernel with L1 cache preference for better performance
     cudaFuncSetCacheConfig(mandelbrotKernel, cudaFuncCachePreferL1);
     
     mandelbrotKernel<<<numBlocks, threadsPerBlock>>>(d_pixels, width, height,
-                                                    centerX, centerY,
-                                                    scale, maxIterations);
+                                                   centerX, centerY,
+                                                   scale, maxIterations);
+    
+    // Check for kernel launch errors
+    err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        printf("CUDA kernel launch error: %s\n", cudaGetErrorString(err));
+        cudaFree(d_pixels);
+        return; // Early return on kernel error
+    }
     
     // Copy result back to host using pitched memory
-    cudaMemcpy2D(pixels, width * 4, d_pixels, pitch,
-                 width * 4, height, cudaMemcpyDeviceToHost);
+    err = cudaMemcpy2D(pixels, width * 4, d_pixels, pitch,
+                width * 4, height, cudaMemcpyDeviceToHost);
+    if (err != cudaSuccess) {
+        printf("CUDA memory copy error: %s\n", cudaGetErrorString(err));
+    }
     
+    // Free device memory
     cudaFree(d_pixels);
     
-    cudaError_t err = cudaDeviceSynchronize();
+    // Final synchronization
+    err = cudaDeviceSynchronize();
     if (err != cudaSuccess) {
-        printf("CUDA kernel error: %s\n", cudaGetErrorString(err));
+        printf("CUDA synchronization error: %s\n", cudaGetErrorString(err));
     }
 }
 
