@@ -117,10 +117,15 @@ bool Renderer::handleEvents() {
             sf::Vector2f mousePos(mousePress->position);
             
             if (mousePress->button == sf::Mouse::Button::Left) {
-                if (resetButton.getGlobalBounds().contains(sf::Vector2f(mousePos))) {
+                // Improved reset button detection
+                if (resetButton.getGlobalBounds().contains(mousePos)) {
+                    std::cout << "Reset button clicked!" << std::endl;
                     if (resetCallback) {
                         resetCallback();
+                    } else {
+                        std::cout << "Reset callback is not set!" << std::endl;
                     }
+                    return true; 
                 } else if (dragStartCallback) {
                     dragStartCallback(mousePos.x, mousePos.y);
                 }

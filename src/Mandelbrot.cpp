@@ -49,16 +49,32 @@ void Mandelbrot::screenToFractalCoords(float screenX, float screenY, float& frac
 }
 
 void Mandelbrot::setZoomTarget(float x, float y, float zoomFactor) {
-    if (isDragging) return; // Don't zoom while dragging
+    // Calculate new zoom level with safety limits
+    float newZoom = zoom * zoomFactor;
     
-    // Calculate new zoom level
-    targetZoom = zoom * zoomFactor;
+    // Prevent extreme zoom levels that could cause numerical issues
+    static const float MIN_ZOOM = 0.000001f;  // Minimum zoom level
+    static const float MAX_ZOOM = 10000000.0f; // Maximum zoom level
     
-    // Keep the current center - no need to change it since we're zooming into screen center
+    if (newZoom < MIN_ZOOM) {
+        newZoom = MIN_ZOOM;
+    } else if (newZoom > MAX_ZOOM) {
+        newZoom = MAX_ZOOM;
+    }
+    
+    targetZoom = newZoom;
+    
+    // Keep the current center - zooming into screen center
     targetCenterX = centerX;
     targetCenterY = centerY;
     
-    animating = true;
+    // If we're dragging, immediately update zoom while maintaining drag
+    if (isDragging) {
+        zoom = targetZoom;
+        // No need to recalculate drag coordinates since we're using relative movement
+    } else {
+        animating = true;
+    }
 }
 
 void Mandelbrot::startDrag(float x, float y) {
@@ -121,10 +137,13 @@ void Mandelbrot::reset() {
     centerY = initialCenterY;
     zoom = initialZoom;
     
-    // Update targets
+    // Update targets to match reset values
     targetCenterX = centerX;
     targetCenterY = centerY;
     targetZoom = zoom;
+    
+    // Force a recomputation
+    compute();
 }
 
 void Mandelbrot::update(float deltaTime) {
